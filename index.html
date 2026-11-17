@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bionic Arm Engineers: Mission Control!</title>
+<style>
+:root{color-scheme:dark;--bg:#0a0e2e;--card:#141a4d;--ink:#f4f6ff;--blue:#2e8bff;--pur:#8a4dff;--org:#ff8a1f;--sil:#cfd6e6;--ok:#2ecc71;--bad:#ff5470;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{margin:0;background:radial-gradient(circle at 20% 0,#1b2370,var(--bg) 60%);color:var(--ink);font:18px/1.45 "Trebuchet MS","Segoe UI",system-ui,sans-serif;min-height:100%}
+body{padding:12px;max-width:1100px;margin:auto}
+h1{margin:0;font-size:1.6rem;letter-spacing:.5px}
+h1 span{color:var(--org)}
+h3{font-size:1.45rem;margin:.2em 0 .5em}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+#score{background:var(--org);color:#1a1000;font-weight:800;border-radius:99px;padding:6px 18px;font-size:1.3rem}
+#bar{display:flex;gap:6px;margin:10px 0;overflow-x:auto}
+.seg{flex:1;min-width:92px;background:#232b6e;border-radius:10px;padding:5px 8px;font-size:.8rem;text-align:center;border-bottom:5px solid #39428f}
+.seg small{display:block;opacity:.7}
+.seg.d{border-color:var(--ok)}.seg.c{border-color:var(--org);background:#37308c}
+.note{background:#1d2570;border-left:6px solid var(--pur);padding:8px 14px;border-radius:10px;font-size:1rem;margin-bottom:10px}
+#main{background:var(--card);border:2px solid #2d3790;border-radius:18px;padding:16px;min-height:380px}
+.two{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:18px;align-items:start}
+@media(max-width:700px){.two{grid-template-columns:1fr}}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+button{font:inherit;color:var(--ink);cursor:pointer}
+.big{background:linear-gradient(#3a5bff,#2742c9);border:0;border-radius:14px;padding:14px 16px;font-size:1.15rem;font-weight:600;box-shadow:0 4px 0 #162a85;text-align:left}
+.big:hover:not(:disabled){filter:brightness(1.15)}
+.big:focus-visible,#next:focus-visible,.z:focus-visible{outline:4px solid var(--org)}
+.big.right{background:var(--ok);box-shadow:0 4px 0 #1b8a4b}
+.big.wrong{background:var(--bad);box-shadow:0 4px 0 #a02a3f;animation:sh .4s}
+.big:disabled{opacity:.85;cursor:default}
+@keyframes sh{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+#fb{min-height:48px;margin:10px 0;padding:10px 14px;border-radius:12px;font-size:1.15rem;font-weight:700}
+#fb.ok{background:#12482f;color:#9ff0c0}#fb.bad{background:#4d1a2a;color:#ffc0cc}
+#next{display:block;margin-left:auto;background:var(--org);color:#1a1000;border:0;border-radius:14px;padding:14px 28px;font-size:1.3rem;font-weight:800;box-shadow:0 4px 0 #a65400}
+.sm{opacity:.85;margin:.2em 0 .6em}
+#skip{margin:10px 0 0 auto;background:#2a3180;border:1px solid #5560c0;border-radius:10px;padding:6px 14px;font-size:.85rem;opacity:.8}
+ol{padding-left:1.4em}ol li{background:#1f2778;border-radius:8px;margin:4px 0;padding:6px 10px}
+.arm{width:100%;max-width:300px;display:block;margin:auto}
+.arm .f{transition:transform 1s;transform-box:fill-box;transform-origin:50% 100%}
+.arm.closed .f{transform:scaleY(.42)}
+.z{cursor:pointer}
+.z:hover{filter:brightness(1.3)}
+.z.found{stroke:var(--ok)!important;stroke-width:5}
+.story{font-size:1.15rem;background:#1d2570;border-radius:12px;padding:10px 14px;margin-bottom:12px}
+.wire{fill:none;stroke-width:6;opacity:0;stroke-dasharray:10 7;stroke-linecap:round}
+.wire.on{opacity:1;animation:fl .8s linear infinite}
+@keyframes fl{to{stroke-dashoffset:-34}}
+.circ{width:100%;background:#0d1245;border-radius:14px;margin-bottom:10px}
+.cert{text-align:center;border:6px double var(--org);border-radius:18px;padding:16px;background:#0f1550}
+.cert input{font:inherit;font-size:1.3rem;text-align:center;border-radius:10px;border:2px solid var(--pur);background:#0a0e2e;color:var(--ink);padding:6px;width:min(320px,90%)}
+.badge{font-size:4rem}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{body{background:#fff}#bar,.note,#fb,header,button{display:none}}
+</style></head><body>
+<header><h1>BIONIC ARM ENGINEERS: <span>Mission Control!</span></h1><div id="score">⭐ 0</div></header>
+<div id="bar"></div>
+<div class="note" id="note"></div>
+<div id="main"></div>
+<div id="fb" role="status"></div>
+<button id="next" style="display:none">Next stage ▶</button>
+<button id="skip" style="display:none">⏭ Teacher skip</button>
+<script>
+const $=s=>document.querySelector(s);
+let st=0,score=0,tm=null;const MAX=145;
+const NAMES=['Mission','3D Printing','Assembly','Circuit','Code','Final Mission'],MIN=[5,7,6,8,7,7];
+const PRAISE=['Great engineering!','Brilliant!','You nailed it!','Amazing teamwork!','Spot on, engineer!'];
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+function bar(){$('#bar').innerHTML=NAMES.map((n,i)=>`<div class="seg ${i<st?'d':i==st?'c':''}">${i+1}. ${n}<small>${MIN[i]} min</small></div>`).join('');$('#score').textContent='⭐ '+score}
+function fb(m,ok){const f=$('#fb');f.textContent=m;f.className=ok?'ok':'bad'}
+function pts(n,first){score+=first?n:Math.ceil(n/2);bar()}
+
+function ARM(id,zones){const z=(p,a)=>zones?`class="z" tabindex="0" role="button" aria-label="${p}" data-p="${p}" `+a:a;
+const fx=[108,148,188,228];
+return `<svg id="${id}" class="arm" viewBox="0 0 360 420" aria-label="Bionic arm"><defs><linearGradient id="g${id}" x1="0" x2="1"><stop offset="0" stop-color="#eef2fb"/><stop offset="1" stop-color="#8f9bb8"/></linearGradient></defs>
+<rect ${z('arm','')} x="125" y="298" width="110" height="118" rx="14" fill="url(#g${id})" stroke="#6a7ab0" stroke-width="3"/>
+<ellipse ${z('wrist','')} cx="180" cy="285" rx="58" ry="17" fill="#8a4dff" stroke="#c9b0ff" stroke-width="3"/>
+<rect ${z('palm','')} x="100" y="180" width="160" height="95" rx="16" fill="url(#g${id})" stroke="#6a7ab0" stroke-width="3"/>
+${fx.map(x=>`<rect class="${zones?'z ':''}f" ${zones?'tabindex="0" role="button" aria-label="fingers" data-p="fingers"':''} x="${x}" y="62" width="26" height="114" rx="12" fill="#2e8bff" stroke="#bcd8ff" stroke-width="3"/>`).join('')}
+${fx.map(x=>`<circle ${z('joints','')} cx="${x+13}" cy="176" r="10" fill="#ff8a1f" stroke="#fff" stroke-width="2"/>`).join('')}
+${fx.map(x=>`<line ${z('strings','')} x1="${x+13}" y1="192" x2="${x+13}" y2="262" stroke="#ff5470" stroke-width="12" stroke-linecap="round"/>`).join('')}
+</svg>`}
+
+function mcq(box,q,opts,a,hint,done,n=10){let miss=0;
+box.innerHTML=`<h3>${q}</h3><div class="opts">${opts.map((o,i)=>`<button class="big" data-i="${i}">${o}</button>`).join('')}</div>`;
+box.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+if(+b.dataset.i===a){b.classList.add('right');box.querySelectorAll('button').forEach(x=>x.disabled=true);pts(n,!miss);fb(rnd(PRAISE)+(miss?' (half points: you used a hint)':' +'+n),1);setTimeout(done,1300)}
+else{miss=1;b.classList.add('wrong');b.disabled=true;fb('Not quite. Hint: '+hint,0)}})}
+
+function seq(box,q,items,hint,done,n=15){let k=0,miss=0;
+box.innerHTML=`<h3>${q}</h3><p class="sm">Tap the steps in the correct order. Your order builds below.</p><div class="opts" id="pool"></div><ol id="got"></ol>`;
+const pool=box.querySelector('#pool'),got=box.querySelector('#got');
+items.map((_,i)=>i).sort(()=>Math.random()-.5).forEach(i=>{const b=document.createElement('button');b.className='big';b.textContent=items[i];
+b.onclick=()=>{if(i===k){k++;b.disabled=true;b.classList.add('right');got.innerHTML+=`<li>${items[i]}</li>`;
+if(k===items.length){pts(n,!miss);fb(rnd(PRAISE)+(miss?' (half points)':' +'+n),1);setTimeout(done,1300)}else fb('Yes! What comes next?',1)}
+else{miss=1;b.classList.add('wrong');setTimeout(()=>b.classList.remove('wrong'),500);fb('Hint: '+hint+' (Looking for step '+(k+1)+')',0)}};pool.appendChild(b)})}
+
+function toggler(id){clearInterval(tm);const a=$('#'+id);tm=setInterval(()=>a.classList.toggle('closed'),1000)}
+
+const STG=[
+{note:'Meet Sam, who wants a robotic arm that can pick things up. Let students predict before revealing. Tap the arm to see it open and close.',
+run(box,fin){box.innerHTML=`<div class="two"><div>${ARM('a1')}</div><div><div class="story">🧒 <b>Sam</b> needs a bionic arm.<br><b>Mission:</b> How can we design an artificial arm that moves and picks up objects?</div><div id="q"></div></div></div>`;
+$('#a1').onclick=()=>$('#a1').classList.toggle('closed');
+mcq($('#q'),'Predict: how do the fingers move?',['By magic ✨','A motor pulls strings, and a program tells the motor what to do','By blowing air from a fan'],1,'Think about motors, strings and code.',fin)}},
+{note:'3D printing builds objects one thin layer at a time. Students take turns choosing the next step.',
+run(box,fin){seq(box,'🖨️ The 3D Printing Challenge',['🖥️ Design the arm in 3D modelling software','🍰 Slice the design into printable layers','📤 Send the sliced design to the 3D printer','🖨️ Print the arm parts layer by layer','🧰 Remove and prepare the printed pieces'],'You can’t print before there is a design, and you can’t finish before printing.',fin)}},
+{note:'Name the parts of the arm. Read each clue aloud, then a student taps the part on the arm.',
+run(box,fin){const C=[['fingers','Which part grips the object?'],['palm','Which big flat part do the fingers attach to?'],['wrist','Which part lets the hand bend where it meets the arm?'],['arm','Which long frame holds everything together?'],['joints','Which small orange hinges let each finger bend?'],['strings','Which red lines pull the fingers closed?']];
+const NM={fingers:'Fingers',palm:'Palm',wrist:'Wrist',arm:'Arm structure',joints:'Connecting joints',strings:'Strings (mechanical links)'};
+let k=0,miss=0;box.innerHTML=`<div class="two"><div>${ARM('a3',1)}</div><div><h3>🔧 Assemble the Bionic Arm</h3><div class="story" id="cl"></div><ol id="fd"></ol></div></div>`;
+const show=()=>$('#cl').textContent='Clue '+(k+1)+' of 6: '+C[k][1];show();
+box.querySelectorAll('.z').forEach(e=>{const go=()=>{const p=e.dataset.p;if(k>=6)return;
+if(p===C[k][0]){box.querySelectorAll('[data-p="'+p+'"]').forEach(x=>x.classList.add('found'));$('#fd').innerHTML+=`<li>✅ ${NM[p]}</li>`;pts(5,!miss);miss=0;window.bad=0;k++;
+if(k===6){$('#cl').textContent='Arm assembled! 🎉';fb('All parts found! The arm is ready for wiring.',1);setTimeout(fin,1300)}else{fb(rnd(PRAISE),1);show()}}
+else{miss=1;window.bad=(window.bad||0)+1;fb('Not that one. Re-read the clue and look again.',0);if(window.bad>=2){box.querySelectorAll('[data-p="'+C[k][0]+'"]').forEach(x=>{x.style.stroke='#ffe14d';x.style.strokeWidth=6});fb('Look for the glowing yellow part!',0)}}};e.onclick=go;e.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();go()}}})}},
+{note:'Safety and accuracy: the servo must NOT take its power from a microcontroller pin, because pins give only a tiny current. Use an external supply (battery pack) with a shared ground. The microcontroller only sends the control signal.',
+run(box,fin){const W=`<svg class="circ" viewBox="0 0 600 320" aria-label="Circuit diagram">
+<rect x="10" y="20" width="110" height="70" rx="10" fill="#2e8bff"/><text x="65" y="50" fill="#fff" font-size="16" text-anchor="middle">🔋 Battery</text><text x="65" y="74" fill="#fff" font-size="13" text-anchor="middle">pack (+ and −)</text>
+<rect x="190" y="20" width="70" height="40" rx="8" fill="#8a4dff"/><text x="225" y="46" fill="#fff" font-size="15" text-anchor="middle">Switch</text>
+<rect x="230" y="90" width="110" height="160" rx="10" fill="#0e7c8f"/><text x="285" y="120" fill="#fff" font-size="15" text-anchor="middle">Microcontroller</text><text x="285" y="140" fill="#fff" font-size="12" text-anchor="middle">(Arduino)</text>
+<text x="335" y="136" fill="#ffd9a8" font-size="12" text-anchor="end">pin 9</text><text x="335" y="206" fill="#ffd9a8" font-size="12" text-anchor="end">GND</text>
+<rect x="470" y="95" width="110" height="100" rx="10" fill="#ff8a1f"/><text x="525" y="150" fill="#1a1000" font-size="16" text-anchor="middle" font-weight="700">⚙️ Servo</text>
+<text x="462" y="112" fill="#ff9aa9" font-size="11" text-anchor="end">red: power</text><text x="462" y="142" fill="#ffd9a8" font-size="11" text-anchor="end">signal</text><text x="462" y="172" fill="#cfd6e6" font-size="11" text-anchor="end">brown: GND</text>
+<path id="w1" class="wire" stroke="#ff5470" d="M120 40H190M260 40H430V115H470"/>
+<path id="w2" class="wire" stroke="#ffb347" d="M340 145H470"/>
+<path id="w3" class="wire" stroke="#cfd6e6" d="M470 175H410V290H100V75H120M340 215H410"/>
+<path id="w4" class="wire" stroke="#7dff9b" d="M285 250V300"/></svg>`;
+box.innerHTML=W+'<div id="q"></div>';
+const Q=[['Step 1: Battery + goes through the switch to which servo wire?',['Servo power wire (red)','Servo signal wire','Microcontroller pin 9'],0,'Power wires carry the electricity that makes the motor turn.','w1'],
+['Step 2: The servo’s signal wire connects to…',['The battery +','A microcontroller output pin (pin 9)','The switch'],1,'The signal wire carries the control messages.','w2'],
+['Step 3: Where do the grounds (GND) go?',['Only to pin 9','Nowhere','Battery − and microcontroller GND together (shared ground)'],2,'Every part must share the same ground to complete the circuit.','w3'],
+['Step 4: Who tells the servo how far to turn?',['The battery','The switch','The programmed microcontroller sends signals on pin 9'],2,'Something has to run the program.','w4']];
+let i=0;const nx=()=>{if(i>=Q.length){fb('Circuit complete! Signals flow from the program to the servo. ⚡',1);return fin()}
+const q=Q[i];mcq($('#q'),q[0],q[1],q[2],q[3],()=>{$('#'+q[4]).classList.add('on');i++;nx()},10)};nx()}},
+{note:'Code is a list of instructions in order. The program sends angle signals to the servo, which pulls the strings that move the fingers.',
+run(box,fin){box.innerHTML=`<div class="two"><div>${ARM('a5')}</div><div id="q"></div></div>`;
+seq($('#q'),'💻 Code the Bionic Arm',['▶ Start','Set servo angle to 0° (open hand)','Wait 1 second (hand open)','Set servo angle to 90° (close hand)','Wait 1 second (hand closed)','↻ Repeat'],'Programs begin with Start. Open comes before close, and each move needs a pause.',()=>{toggler('a5');fb('Your code runs! Watch the hand open and close. 🤖',1);fin()})}},
+{note:'The arm must pick up an object. Three tasks: printing order, fix the circuit, finish the code.',
+run(box,fin){box.innerHTML='<h3>🎯 The arm is ready, but it needs to pick up an object!</h3><p class="sm" id="tk"></p><div id="q"></div>';
+const T=[()=>{$('#tk').textContent='Task 1 of 3: 3D printing';mcq($('#q'),'Which is the correct 3D printing sequence?',['Print → Design → Slice → Send → Remove','Design → Slice → Send → Print → Remove','Slice → Remove → Design → Print → Send'],1,'Design first, slice before printing.',T[1])},
+()=>{$('#tk').textContent='Task 2 of 3: fix the broken circuit';mcq($('#q'),'The servo’s red power wire is plugged into microcontroller pin 9. How do we fix it?',['Leave it, pins can power big motors','Connect servo power to the external battery supply via the switch, and move pin 9 to the signal wire','Connect red wire to GND'],1,'Pins send signals; the battery supplies power.',T[2])},
+()=>{$('#tk').textContent='Task 3 of 3: arrange the code';seq($('#q'),'Make the arm move forever',['↻ Repeat forever','Set servo angle to 0° (open)','Wait 1 second','Set servo angle to 90° (close)'],'A repeat block wraps the moves; open, then close.',fin)}];
+T[0]()}}
+];
+function go(){clearInterval(tm);if(st>5)return end();bar();const s=STG[st];$('#note').innerHTML='🧑‍🏫 <b>Teacher:</b> '+s.note;$('#next').style.display='none';fb('Read the instructions and tap to play!',1);
+const my=st,f=()=>{if(my!==st)return;$('#skip').style.display='none';$('#next').style.display='block';$('#next').textContent=st<5?'Next stage ▶':'Finish 🏆'};
+$('#skip').style.display='block';$('#skip').onclick=f;s.run($('#main'),f)}
+$('#next').onclick=()=>{st++;go()};
+function end(){bar();const p=Math.round(score/MAX*100),t=p>=85?['🥇','Master Engineer']:p>=60?['🥈','Expert Engineer']:['🥉','Junior Engineer'];
+$('#next').style.display='none';$('#note').innerHTML='🧑‍🏫 <b>Teacher:</b> Final reflection, then a quick formative check: ask students to name one job each for the printer, the battery and the code.';
+$('#main').innerHTML=`<div class="two"><div>${ARM('a7')}</div><div class="cert"><div class="badge">${t[0]}</div><h3>Engineering Achievement Certificate</h3><p>Awarded to<br><input id="nm" placeholder="Type engineer’s name" aria-label="Engineer name"></p><p><b>${t[1]}</b> · Score: ${score} / ${MAX} (${p}%)</p><p class="sm"><b>Reflect:</b> How do 3D printing, electricity, and programming work together to make a bionic arm move?</p><button class="big" onclick="print()">🖨️ Print certificate</button></div></div>`;
+toggler('a7');fb('Mission complete! The bionic arm is opening and closing. 🎉',1)}
+bar();go();
+</script></body></html>
